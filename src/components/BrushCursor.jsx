@@ -52,33 +52,21 @@ export default function BrushCursor() {
             isActiveRef.current = true;
         };
 
-        const handleTouchStart = (e) => {
-            if (e.touches.length > 0) {
-                const x = e.touches[0].clientX;
-                const y = e.touches[0].clientY;
-
-                mouseRef.current = { x, y };
-                cursorRef.current = { x, y };
-                pointsRef.current = [];
-
-                inputTypeRef.current = 'touch';
-                isActiveRef.current = true;
-                ghostBlockTimeRef.current = Date.now() + 500;
-            }
+        // Touch is disabled - just clear and ignore
+        const handleTouchStart = () => {
+            isActiveRef.current = false;
+            pointsRef.current = [];
+            forceClear();
         };
 
-        const handleTouchMove = (e) => {
-            if (e.touches.length > 0) {
-                mouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                isActiveRef.current = true;
-            }
+        const handleTouchMove = () => {
+            // Disabled for touch
         };
 
         const handleTouchEnd = () => {
             isActiveRef.current = false;
             pointsRef.current = [];
             forceClear();
-            ghostBlockTimeRef.current = Date.now() + 500;
         };
 
         window.addEventListener('mousemove', handleMove);
