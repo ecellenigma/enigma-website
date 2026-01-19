@@ -70,7 +70,7 @@ export default function BrushCursor() {
         const handleTouchEnd = () => {
             // When touch ends, stop drawing AND clear existing points instantly
             isActiveRef.current = false;
-            pointsRef.current = []; // <--- "Clean residue on finger lift"
+            pointsRef.current = [];
             ghostBlockTimeRef.current = Date.now() + 500;
         };
 
@@ -79,6 +79,12 @@ export default function BrushCursor() {
         window.addEventListener('touchstart', handleTouchStart, { passive: true });
         window.addEventListener('touchend', handleTouchEnd);
         window.addEventListener('touchcancel', handleTouchEnd);
+
+        // Safari/Firefox mobile safety net
+        window.addEventListener('pointerup', handleTouchEnd);
+        window.addEventListener('pointercancel', handleTouchEnd);
+        window.addEventListener('gestureend', handleTouchEnd);
+        window.addEventListener('gesturechange', handleTouchEnd); // Aggressive safety for scrolling gestures
 
         const animate = () => {
             // LERP: Smooth cursor movement
