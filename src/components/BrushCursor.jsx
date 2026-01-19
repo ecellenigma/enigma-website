@@ -172,7 +172,6 @@ export default function BrushCursor() {
             window.removeEventListener('touchstart', handleTouchStart);
             window.removeEventListener('touchend', handleTouchEnd);
             window.removeEventListener('touchcancel', handleTouchEnd);
-            window.removeEventListener('scroll', handleScroll);
             window.removeEventListener('pointerup', handleTouchEnd);
             window.removeEventListener('pointercancel', handleTouchEnd);
             cancelAnimationFrame(rafRef.current);

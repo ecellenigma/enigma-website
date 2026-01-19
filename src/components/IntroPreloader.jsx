@@ -39,6 +39,7 @@ export default function IntroPreloader({ onComplete }) {
     return (
         <motion.div
             className="fixed inset-0 z-[1000] bg-[#020202] flex flex-col items-center justify-center text-white overflow-hidden cursor-none"
+            style={{ position: 'fixed' }}
             initial={{ y: 0 }}
             exit={{ y: "-100%", transition: { duration: 0.8, ease: [0.76, 0, 0.24, 1] } }}
         >
