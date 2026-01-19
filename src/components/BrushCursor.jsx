@@ -17,6 +17,7 @@ export default function BrushCursor() {
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
+        ctxRef.current = ctx; // Save for external access
         let width = window.innerWidth;
         let height = window.innerHeight;
 
@@ -67,11 +68,25 @@ export default function BrushCursor() {
             }
         };
 
+        // Helper to synchronously wipe canvas (crucial for iOS scroll freeze)
+        const forceClear = () => {
+            if (ctxRef.current && canvasRef.current) {
+                ctxRef.current.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+            }
+        };
+
         const handleTouchEnd = () => {
-            // When touch ends, stop drawing AND clear existing points instantly
+            // When touch ends, clear EVERYTHING instantly
             isActiveRef.current = false;
             pointsRef.current = [];
+            forceClear(); // <--- Synchronous wipe
             ghostBlockTimeRef.current = Date.now() + 500;
+        };
+
+        const handleScroll = () => {
+            // Wipe instantly on scroll start
+            pointsRef.current = [];
+            forceClear(); // <--- Synchronous wipe
         };
 
         window.addEventListener('mousemove', handleMove);
@@ -79,6 +94,7 @@ export default function BrushCursor() {
         window.addEventListener('touchstart', handleTouchStart, { passive: true });
         window.addEventListener('touchend', handleTouchEnd);
         window.addEventListener('touchcancel', handleTouchEnd);
+        window.addEventListener('scroll', handleScroll, { passive: true }); // Re-added for iOS safety
 
         // Safari/Firefox mobile safety net
         window.addEventListener('pointerup', handleTouchEnd);
@@ -87,21 +103,44 @@ export default function BrushCursor() {
         window.addEventListener('gesturechange', handleTouchEnd); // Aggressive safety for scrolling gestures
 
         const animate = () => {
+            // Store previous position for gap filling
+            const prevX = cursorRef.current.x;
+            const prevY = cursorRef.current.y;
+
             // LERP: Smooth cursor movement
-            // Touch needs to be VERY fast to feel responsive (high lerp), mouse allows drift (low lerp)
-            const lerpFactor = inputTypeRef.current === 'touch' ? 0.8 : 0.15;
+            // Touch needs to be INSTANT (1.0) to avoid "scroll lag" sensation
+            // Mouse retains smooth drift (0.15)
+            const lerpFactor = inputTypeRef.current === 'touch' ? 1.0 : 0.15;
 
             cursorRef.current.x += (mouseRef.current.x - cursorRef.current.x) * lerpFactor;
             cursorRef.current.y += (mouseRef.current.y - cursorRef.current.y) * lerpFactor;
 
             // Only spawn points if cursor is ACTIVE
             if (isActiveRef.current) {
-                pointsRef.current.push({
-                    x: cursorRef.current.x,
-                    y: cursorRef.current.y,
-                    age: 0,
-                    id: Math.random()
-                });
+                const dist = Math.hypot(cursorRef.current.x - prevX, cursorRef.current.y - prevY);
+                // "Gap Filling": If cursor jumped (due to fast touch or low event rate), fill the space
+                // This ensures solid lines even with Lerp 1.0
+                const steps = Math.ceil(dist / 5); // Insert a point every 5 pixels
+
+                for (let i = 0; i < steps; i++) {
+                    const t = (i + 1) / steps;
+                    pointsRef.current.push({
+                        x: prevX + (cursorRef.current.x - prevX) * t,
+                        y: prevY + (cursorRef.current.y - prevY) * t,
+                        age: 0,
+                        id: Math.random()
+                    });
+                }
+
+                // Always push at least the current point if no movement (or very small)
+                if (steps === 0) {
+                    pointsRef.current.push({
+                        x: cursorRef.current.x,
+                        y: cursorRef.current.y,
+                        age: 0,
+                        id: Math.random()
+                    });
+                }
             }
 
             // Update points (age them out)
