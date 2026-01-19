@@ -7,6 +7,11 @@ export default function BrushCursor() {
     const pointsRef = useRef([]);
     const rafRef = useRef();
 
+    const isMobileDevice = typeof navigator !== 'undefined' &&
+        /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (isMobileDevice) return null;
+
     const isActiveRef = useRef(false);
     const ctxRef = useRef(null);
 
@@ -51,7 +56,14 @@ export default function BrushCursor() {
             forceClear();
         };
 
+        const handleClick = () => {
+            isActiveRef.current = false;
+            pointsRef.current = [];
+            forceClear();
+        };
+
         window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mousedown', handleClick);
         window.addEventListener('touchstart', handleTouchEnd, { passive: true });
         window.addEventListener('touchend', handleTouchEnd);
 
@@ -112,6 +124,7 @@ export default function BrushCursor() {
         return () => {
             window.removeEventListener('resize', handleResize);
             window.removeEventListener('mousemove', handleMove);
+            window.removeEventListener('mousedown', handleClick);
             window.removeEventListener('touchstart', handleTouchEnd);
             window.removeEventListener('touchend', handleTouchEnd);
             cancelAnimationFrame(rafRef.current);
