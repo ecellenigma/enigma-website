@@ -7,8 +7,14 @@ export default function BrushCursor() {
     const pointsRef = useRef([]);
     const rafRef = useRef();
 
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (isIOS) return null;
+    // Detect iOS for specific optimizations (without deprecated navigator.platform)
+    const isIOS = useRef(false);
+    if (typeof navigator !== 'undefined') {
+        const ua = navigator.userAgent || '';
+        // Check userAgent for iPhone/iPad/iPod OR check for touch-capable Mac (iPad in desktop mode)
+        isIOS.current = /iPhone|iPad|iPod/i.test(ua) ||
+            (navigator.maxTouchPoints > 1 && /Macintosh/i.test(ua));
+    }
 
     const inputTypeRef = useRef('mouse');
     const isActiveRef = useRef(true);
@@ -34,11 +40,15 @@ export default function BrushCursor() {
         handleResize();
         window.addEventListener('resize', handleResize);
 
+        const forceClear = () => {
+            if (ctxRef.current && canvasRef.current) {
+                ctxRef.current.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+            }
+        };
+
         const handleMove = (e) => {
             if (Date.now() < ghostBlockTimeRef.current) return;
-
             mouseRef.current = { x: e.clientX, y: e.clientY };
-
             inputTypeRef.current = 'mouse';
             isActiveRef.current = true;
         };
@@ -49,14 +59,11 @@ export default function BrushCursor() {
                 const y = e.touches[0].clientY;
 
                 mouseRef.current = { x, y };
-
                 cursorRef.current = { x, y };
-
                 pointsRef.current = [];
 
                 inputTypeRef.current = 'touch';
                 isActiveRef.current = true;
-
                 ghostBlockTimeRef.current = Date.now() + 500;
             }
         };
@@ -65,12 +72,6 @@ export default function BrushCursor() {
             if (e.touches.length > 0) {
                 mouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
                 isActiveRef.current = true;
-            }
-        };
-
-        const forceClear = () => {
-            if (ctxRef.current && canvasRef.current) {
-                ctxRef.current.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
             }
         };
 
@@ -86,17 +87,24 @@ export default function BrushCursor() {
         window.addEventListener('touchstart', handleTouchStart, { passive: true });
         window.addEventListener('touchend', handleTouchEnd);
         window.addEventListener('touchcancel', handleTouchEnd);
-
         window.addEventListener('pointerup', handleTouchEnd);
         window.addEventListener('pointercancel', handleTouchEnd);
-        window.addEventListener('gestureend', handleTouchEnd);
-        window.addEventListener('gesturechange', handleTouchEnd);
 
         const animate = () => {
             const prevX = cursorRef.current.x;
             const prevY = cursorRef.current.y;
 
-            const lerpFactor = inputTypeRef.current === 'touch' ? 0.5 : 0.15;
+            // iOS: 0.6 for smooth liquid feel
+            // Android: 0.5
+            // Desktop mouse: 0.15 silky drift
+            let lerpFactor;
+            if (isIOS.current) {
+                lerpFactor = 0.6; // Smooth liquid for iOS
+            } else if (inputTypeRef.current === 'touch') {
+                lerpFactor = 0.5; // Liquid feel for Android
+            } else {
+                lerpFactor = 0.15; // Silky drift for mouse
+            }
 
             cursorRef.current.x += (mouseRef.current.x - cursorRef.current.x) * lerpFactor;
             cursorRef.current.y += (mouseRef.current.y - cursorRef.current.y) * lerpFactor;
@@ -125,8 +133,12 @@ export default function BrushCursor() {
                 }
             }
 
+            // iOS: Faster aging (0.08) for quicker trail fade = less residue
+            // Others: Standard aging (0.05)
+            const agingRate = isIOS.current ? 0.08 : 0.05;
+
             pointsRef.current = pointsRef.current
-                .map(p => ({ ...p, age: p.age + 0.05 }))
+                .map(p => ({ ...p, age: p.age + agingRate }))
                 .filter(p => p.age < 1);
 
             ctx.clearRect(0, 0, width, height);
@@ -135,7 +147,8 @@ export default function BrushCursor() {
             ctx.beginPath();
 
             const isMobile = width < 768;
-            const baseSize = isMobile ? 30 : 80;
+            // iOS: Slightly smaller cursor for better performance
+            const baseSize = isIOS.current ? 25 : (isMobile ? 30 : 80);
 
             pointsRef.current.forEach(point => {
                 const size = baseSize * (1 - point.age);
@@ -159,6 +172,9 @@ export default function BrushCursor() {
             window.removeEventListener('touchstart', handleTouchStart);
             window.removeEventListener('touchend', handleTouchEnd);
             window.removeEventListener('touchcancel', handleTouchEnd);
+            window.removeEventListener('scroll', handleScroll);
+            window.removeEventListener('pointerup', handleTouchEnd);
+            window.removeEventListener('pointercancel', handleTouchEnd);
             cancelAnimationFrame(rafRef.current);
         };
     }, []);
@@ -168,7 +184,7 @@ export default function BrushCursor() {
             <svg className="hidden">
                 <defs>
                     <filter id="liquid-goo">
-                        <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur" />
+                        <feGaussianBlur in="SourceGraphic" stdDeviation={isIOS.current ? 6 : 10} result="blur" />
                         <feColorMatrix
                             in="blur"
                             mode="matrix"
