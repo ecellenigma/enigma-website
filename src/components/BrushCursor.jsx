@@ -68,15 +68,10 @@ export default function BrushCursor() {
         };
 
         const handleTouchEnd = () => {
-            // When touch ends, stop drawing (so the cursor "disappears" effectively)
+            // When touch ends, stop drawing AND clear existing points instantly
             isActiveRef.current = false;
+            pointsRef.current = []; // <--- "Clean residue on finger lift"
             ghostBlockTimeRef.current = Date.now() + 500;
-        };
-
-        const handleScroll = () => {
-            // instant clean up on scroll to prevent "dirty glass" effect
-            // when user scrolls, the trail should not linger over moving content
-            pointsRef.current = [];
         };
 
         window.addEventListener('mousemove', handleMove);
@@ -84,7 +79,6 @@ export default function BrushCursor() {
         window.addEventListener('touchstart', handleTouchStart, { passive: true });
         window.addEventListener('touchend', handleTouchEnd);
         window.addEventListener('touchcancel', handleTouchEnd);
-        window.addEventListener('scroll', handleScroll, { passive: true });
 
         const animate = () => {
             // LERP: Smooth cursor movement
