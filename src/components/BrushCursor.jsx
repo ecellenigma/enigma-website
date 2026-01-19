@@ -7,14 +7,13 @@ export default function BrushCursor() {
     const pointsRef = useRef([]);
     const rafRef = useRef();
 
-    // Detect iOS for specific optimizations (without deprecated navigator.platform)
-    const isIOS = useRef(false);
-    if (typeof navigator !== 'undefined') {
+    const isIOS = (() => {
+        if (typeof navigator === 'undefined') return false;
         const ua = navigator.userAgent || '';
-        // Check userAgent for iPhone/iPad/iPod OR check for touch-capable Mac (iPad in desktop mode)
-        isIOS.current = /iPhone|iPad|iPod/i.test(ua) ||
-            (navigator.maxTouchPoints > 1 && /Macintosh/i.test(ua));
-    }
+        return /iPhone|iPad|iPod/i.test(ua);
+    })();
+
+    if (isIOS) return null;
 
     const inputTypeRef = useRef('mouse');
     const isActiveRef = useRef(true);
@@ -103,7 +102,7 @@ export default function BrushCursor() {
             } else if (inputTypeRef.current === 'touch') {
                 lerpFactor = 0.5; // Liquid feel for Android
             } else {
-                lerpFactor = 0.15; // Silky drift for mouse
+                lerpFactor = 0.25; // Faster responsive for mouse
             }
 
             cursorRef.current.x += (mouseRef.current.x - cursorRef.current.x) * lerpFactor;
