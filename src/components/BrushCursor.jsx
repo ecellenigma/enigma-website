@@ -73,11 +73,18 @@ export default function BrushCursor() {
             ghostBlockTimeRef.current = Date.now() + 500;
         };
 
+        const handleScroll = () => {
+            // instant clean up on scroll to prevent "dirty glass" effect
+            // when user scrolls, the trail should not linger over moving content
+            pointsRef.current = [];
+        };
+
         window.addEventListener('mousemove', handleMove);
         window.addEventListener('touchmove', handleTouchMove, { passive: true });
         window.addEventListener('touchstart', handleTouchStart, { passive: true });
         window.addEventListener('touchend', handleTouchEnd);
         window.addEventListener('touchcancel', handleTouchEnd);
+        window.addEventListener('scroll', handleScroll, { passive: true });
 
         const animate = () => {
             // LERP: Smooth cursor movement
