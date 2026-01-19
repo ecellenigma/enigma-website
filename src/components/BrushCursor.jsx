@@ -11,6 +11,7 @@ export default function BrushCursor() {
     const inputTypeRef = useRef('mouse'); // 'mouse' or 'touch'
     const isActiveRef = useRef(true);     // Is the cursor currently "drawing"?
     const ghostBlockTimeRef = useRef(0);  // Timestamp to block ghost mouse events
+    const ctxRef = useRef(null);          // Context for synchronous clearing
 
     useEffect(() => {
         const canvas = canvasRef.current;
