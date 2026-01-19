@@ -12,6 +12,7 @@ export default function BrushCursor() {
     const isActiveRef = useRef(true);     // Is the cursor currently "drawing"?
     const ghostBlockTimeRef = useRef(0);  // Timestamp to block ghost mouse events
     const ctxRef = useRef(null);          // Context for synchronous clearing
+    const isScrollingRef = useRef(false); // Lock to prevent drawing DURING a scroll
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -45,14 +46,19 @@ export default function BrushCursor() {
 
         const handleTouchStart = (e) => {
             if (e.touches.length > 0) {
+                // RESET SCROLL LOCK ON NEW TOUCH
+                isScrollingRef.current = false;
+
                 const x = e.touches[0].clientX;
                 const y = e.touches[0].clientY;
 
                 mouseRef.current = { x, y };
 
                 // INSTANTLY snap interpolated cursor to new touch position
-                // This prevents the "streak" or travel line from old position
                 cursorRef.current = { x, y };
+
+                // Clear any old points to start fresh stroke
+                pointsRef.current = [];
 
                 inputTypeRef.current = 'touch';
                 isActiveRef.current = true;
@@ -63,6 +69,9 @@ export default function BrushCursor() {
         };
 
         const handleTouchMove = (e) => {
+            // IF WE ARE SCROLLING, DO NOT DRAW
+            if (isScrollingRef.current) return;
+
             if (e.touches.length > 0) {
                 mouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
                 isActiveRef.current = true;
@@ -85,6 +94,9 @@ export default function BrushCursor() {
         };
 
         const handleScroll = () => {
+            // DETECTTED SCROLL: LOCK DRAWING IMMEDIATELY
+            isScrollingRef.current = true;
+
             // Wipe instantly on scroll start
             pointsRef.current = [];
             forceClear(); // <--- Synchronous wipe
@@ -109,9 +121,9 @@ export default function BrushCursor() {
             const prevY = cursorRef.current.y;
 
             // LERP: Smooth cursor movement
-            // Touch needs to be INSTANT (1.0) to avoid "scroll lag" sensation
-            // Mouse retains smooth drift (0.15)
-            const lerpFactor = inputTypeRef.current === 'touch' ? 1.0 : 0.15;
+            // Touch: 0.5 gives a "liquid" drag feel (elasticity) while remaining responsive.
+            // Mouse: 0.15 gives a silky drift.
+            const lerpFactor = inputTypeRef.current === 'touch' ? 0.5 : 0.15;
 
             cursorRef.current.x += (mouseRef.current.x - cursorRef.current.x) * lerpFactor;
             cursorRef.current.y += (mouseRef.current.y - cursorRef.current.y) * lerpFactor;
